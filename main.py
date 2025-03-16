@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 
-# Inicializa a aplicação FastAPI
+
 app = FastAPI()
 
 
@@ -22,35 +22,36 @@ templates = Jinja2Templates(directory="templates")
 
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
+    
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Configuração do banco de dados SQLite
+
 DATABASE_URL = "sqlite:///./test.db"
 Base = declarative_base()
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Definição do modelo do banco de dados
+
 class Cotacao(Base):
     __tablename__ = "cotacoes"
     date = Column(Date, primary_key=True)
     moeda = Column(String, primary_key=True)
     valor = Column(Float)
 
-# Criação das tabelas no banco de dados
+
 Base.metadata.create_all(bind=engine)
 
-# Função para buscar os últimos 5 dias úteis
+
 def get_last_5_workdays():
     workdays = []
     today = datetime.today()
     while len(workdays) < 5:
-        if today.weekday() < 5:  # Segunda a sexta (0 a 4)
+        if today.weekday() < 5:  
             workdays.append(today.strftime("%Y-%m-%d"))
         today -= timedelta(days=1)
-    return workdays[::-1]  # Retorna do mais antigo para o mais recente
+    return workdays[::-1]  
 
-# Função para buscar e armazenar cotações
+
 def fetch_and_store_cotacoes(base="USD", moedas=["BRL", "EUR", "JPY"]):
     session = SessionLocal()
     workdays = get_last_5_workdays()
@@ -67,16 +68,16 @@ def fetch_and_store_cotacoes(base="USD", moedas=["BRL", "EUR", "JPY"]):
         for moeda in moedas:
             if moeda in rates:
                 cotacao = Cotacao(date=datetime.strptime(day, "%Y-%m-%d"), moeda=moeda, valor=rates[moeda])
-                session.merge(cotacao)  # Atualiza ou insere
+                session.merge(cotacao) 
     session.commit()
     session.close()
 
-# Chamar fetch_and_store_cotacoes automaticamente ao iniciar o app
+
 @app.on_event("startup")
 def startup_event():
     fetch_and_store_cotacoes()
 
-# Endpoint para gerar o gráfico
+
 @app.get("/grafico")
 def plotar_grafico():
     session = SessionLocal()
@@ -96,7 +97,7 @@ def plotar_grafico():
         plt.plot(df_moeda['date'], df_moeda['valor'], label=moeda)
     plt.xlabel("Data")
     plt.ylabel("Valor")
-    plt.title("Cotações dos últimos 5 dias úteis (com base no dólar)")
+    plt.title("Cotações dos últimos 5 dias úteis")
     plt.legend()
     plt.savefig("templates/grafico.png")
     plt.close()
